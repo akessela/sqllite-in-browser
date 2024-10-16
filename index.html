@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SQLite in Browser with Cached DB</title>
+    <title>SQLite in Browser with Preloaded Database</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -29,7 +29,7 @@
     </style>
 </head>
 <body>
-    <h1>Run SQLite Queries in the Browser (With Cached DB)</h1>
+    <h1>Run SQLite Queries in the Browser</h1>
     <textarea id="query" placeholder="Enter SQL query here"></textarea>
     <br>
     <button id="runButton" disabled>Run Query</button>
@@ -38,91 +38,123 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.6.2/sql-wasm.js"></script>
     <script>
         let db;
-        let dbInitialized = false;  // Track whether the database is ready
+        let dbInitialized = false;
 
-        // Function to open IndexedDB
-        function openDatabase() {
-            return new Promise((resolve, reject) => {
-                const request = indexedDB.open("SQLiteDB", 1);
-                
-                request.onupgradeneeded = function(event) {
-                    const db = event.target.result;
-                    if (!db.objectStoreNames.contains("dbStore")) {
-                        db.createObjectStore("dbStore");
-                    }
-                };
+        // Load DB from IndexedDB if available, otherwise download it from the provided URL
+        function loadDatabase() {
+            const DB_NAME = "preloadedDB";
+            const DB_VERSION = 1;
+            const STORE_NAME = "sqlite";
 
-                request.onsuccess = function(event) {
-                    resolve(event.target.result);
-                };
+            // Function to download DB and store it in IndexedDB
+            function downloadAndStoreDatabase(url) {
+                console.log("Downloading database from:", url);
 
-                request.onerror = function(event) {
-                    reject("Error opening IndexedDB: " + event.target.errorCode);
-                };
-            });
-        }
-
-        // Function to fetch and cache the database
-        function fetchAndCacheDatabase(dbInstance) {
-            return fetch("https://nlp.stanford.edu/helm/czech_bank/czech_bank.db")
-                .then(response => response.arrayBuffer())
-                .then(data => {
-                    const transaction = dbInstance.transaction("dbStore", "readwrite");
-                    const store = transaction.objectStore("dbStore");
-                    store.put(data, "dbFile");  // Cache the db file
-                    return data;
-                })
-                .catch(err => {
-                    console.error("Error fetching DB: ", err);
-                });
-        }
-
-        // Load database from cache or fetch if not cached
-        async function loadDatabase() {
-            const dbInstance = await openDatabase();
-            const transaction = dbInstance.transaction("dbStore", "readonly");
-            const store = transaction.objectStore("dbStore");
-            const getRequest = store.get("dbFile");
-
-            return new Promise((resolve, reject) => {
-                getRequest.onsuccess = async function(event) {
-                    const cachedDB = event.target.result;
-
-                    if (cachedDB) {
-                        // Load from cache
-                        console.log("Database loaded from cache.");
-                        resolve(cachedDB);
-                    } else {
-                        // Fetch and cache
-                        console.log("Fetching and caching database...");
-                        const fetchedDB = await fetchAndCacheDatabase(dbInstance);
-                        resolve(fetchedDB);
-                    }
-                };
-
-                getRequest.onerror = function(event) {
-                    reject("Error loading cached database: " + event.target.errorCode);
-                };
-            });
-        }
-
-        // Initialize sql.js and load the database
-        initSqlJs({
-            locateFile: file => `https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.6.2/${file}`
-        }).then(async function(SQL) {
-            const dbFileBuffer = await loadDatabase();  // Load from cache or fetch
-
-            if (dbFileBuffer) {
-                // Create a database from the downloaded buffer
-                db = new SQL.Database(new Uint8Array(dbFileBuffer));
-                dbInitialized = true;
-                console.log("Database initialized successfully from buffer.");
-
-                // Enable the "Run Query" button once DB is initialized
-                document.getElementById('runButton').disabled = false;
-            } else {
-                document.getElementById('results').textContent = 'Error loading the database.';
+                fetch(url)
+                    .then(response => response.arrayBuffer())
+                    .then(arrayBuffer => {
+                        console.log("Database downloaded successfully.");
+                        
+                        // Save database to IndexedDB
+                        const request = indexedDB.open(DB_NAME, DB_VERSION);
+                        request.onupgradeneeded = function(event) {
+                            const db = event.target.result;
+                            db.createObjectStore(STORE_NAME);
+                        };
+                        request.onsuccess = function(event) {
+                            const idb = event.target.result;
+                            const transaction = idb.transaction([STORE_NAME], "readwrite");
+                            const store = transaction.objectStore(STORE_NAME);
+                            store.put(arrayBuffer, "czech_bank.db");
+                            console.log("Database stored in IndexedDB.");
+                            
+                            // Initialize SQL.js with the stored DB
+                            initSqlDatabase(new Uint8Array(arrayBuffer));
+                        };
+                    })
+                    .catch(err => {
+                        console.error("Error downloading the database:", err);
+                    });
             }
-        }).catch(function(err) {
-            document.getElementById('results').textContent = 'Error loading sql.js: ' + err.message;
-            console.error("
+
+            // Load DB from IndexedDB
+            const request = indexedDB.open(DB_NAME, DB_VERSION);
+            request.onsuccess = function(event) {
+                const idb = event.target.result;
+                const transaction = idb.transaction([STORE_NAME], "readonly");
+                const store = transaction.objectStore(STORE_NAME);
+                const dbRequest = store.get("czech_bank.db");
+
+                dbRequest.onsuccess = function(event) {
+                    const storedDb = event.target.result;
+                    if (storedDb) {
+                        console.log("Database loaded from IndexedDB.");
+                        initSqlDatabase(new Uint8Array(storedDb));
+                    } else {
+                        // If not in IndexedDB, download it from the URL
+                        downloadAndStoreDatabase("https://nlp.stanford.edu/helm/czech_bank/czech_bank.db");
+                    }
+                };
+
+                dbRequest.onerror = function() {
+                    console.error("Error loading database from IndexedDB.");
+                };
+            };
+
+            request.onerror = function() {
+                console.error("IndexedDB error:", request.error);
+            };
+        }
+
+        // Initialize SQL.js with the given Uint8Array database buffer
+        function initSqlDatabase(databaseBuffer) {
+            initSqlJs({
+                locateFile: file => `https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.6.2/${file}`
+            }).then(function(SQL) {
+                db = new SQL.Database(databaseBuffer);  // Load the preloaded DB
+                dbInitialized = true;
+                console.log('Database initialized successfully from buffer.');
+
+                // Enable the "Run Query" button
+                document.getElementById('runButton').disabled = false;
+            }).catch(function(err) {
+                document.getElementById('results').textContent = 'Error loading sql.js: ' + err.message;
+                console.error("SQL.js initialization error:", err);
+            });
+        }
+
+        // Add a click event listener for the "Run Query" button
+        document.getElementById('runButton').addEventListener('click', function() {
+            const query = document.getElementById('query').value;
+            let result = '';
+
+            if (!dbInitialized) {
+                result = 'Error: Database is not initialized yet. Please wait...';
+                document.getElementById('results').textContent = result;
+                return;
+            }
+
+            try {
+                // Run the SQL query
+                const res = db.exec(query);
+                if (res.length === 0) {
+                    result = 'No results found.';
+                } else {
+                    result = JSON.stringify(res, null, 2);
+                }
+            } catch (err) {
+                result = 'Error: ' + err.message;
+                console.error("Query execution error:", err);
+            }
+
+            // Display the result or error
+            document.getElementById('results').textContent = result;
+        });
+
+        // Load the database when the page is loaded
+        window.onload = function() {
+            loadDatabase();  // Load from IndexedDB or download
+        };
+    </script>
+</body>
+</html>
