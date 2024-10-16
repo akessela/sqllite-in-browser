@@ -5,10 +5,39 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>SQLite in Browser</title>
   <style>
-    /* ... (same styles as before) */
+    body {
+      font-family: Arial, sans-serif;
+      padding: 20px;
+    }
+
+    textarea {
+      width: 100%;
+      height: 100px;
+      margin-top: 10px;
+    }
+
+    button {
+      margin-top: 10px;
+    }
+
+    pre {
+      background-color: #f4f4f4;
+      padding: 10px;
+      border: 1px solid #ddd;
+      overflow-x: auto;
+    }
+
+    .error {
+      color: red;
+    }
   </style>
 </head>
 <body>
+  <textarea id="query" placeholder="Enter SQL query here"></textarea>
+  <br>
+  <button id="runButton" disabled>Run Query</button>
+  <pre id="results"></pre>
+
   <script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.6.2/sql-wasm.js"></script>
   <script>
     let db;
@@ -42,7 +71,33 @@
     // Call the loadDatabase function with the URL
     loadDatabase('https://nlp.stanford.edu/helm/czech_bank/czech_bank.db');
 
-    // ... (rest of the code remains the same)
+    // Add a click event listener for the "Run Query" button
+    document.getElementById('runButton').addEventListener('click', function() {
+      const query = document.getElementById('query').value;
+      let result = '';
+
+      if (!dbInitialized) {
+        result = 'Error: Database is not initialized yet. Please wait...';
+        document.getElementById('results').textContent = result;
+        return;
+      }
+
+      try {
+        // Run the SQL query
+        const res = db.exec(query);
+        if (res.length === 0) {
+          result = 'No results found.';
+        } else {
+          result = JSON.stringify(res, null, 2);
+        }
+      } catch (err) {
+        result = 'Error: ' + err.message;
+        console.error("Query execution error:", err);
+      }
+
+      // Display the result or error
+      document.getElementById('results').textContent = result;
+    });
   </script>
 </body>
 </html>
