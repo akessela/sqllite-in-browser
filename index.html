@@ -23,6 +23,9 @@
             border: 1px solid #ddd;
             overflow-x: scroll;
         }
+        .error {
+            color: red;
+        }
     </style>
 </head>
 <body>
@@ -35,35 +38,15 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.6.2/sql-wasm.js"></script>
     <script>
         let db;
+        let dbInitialized = false;  // Track whether the database is ready
 
         // Initialize sql.js and create a new database in memory
         initSqlJs().then(function(SQL) {
             // Create an empty database
             db = new SQL.Database();
-            
+            dbInitialized = true;
+
             // Optional: Pre-populate the database with some data (example)
             db.run("CREATE TABLE test (id INTEGER, message TEXT); INSERT INTO test VALUES (1, 'Hello World'), (2, 'SQLite in the browser!');");
-        });
-
-        function runQuery() {
-            const query = document.getElementById('query').value;
-            let result = '';
-
-            try {
-                // Run the SQL query
-                const res = db.exec(query);
-                if (res.length === 0) {
-                    result = 'No results found.';
-                } else {
-                    result = JSON.stringify(res, null, 2);
-                }
-            } catch (err) {
-                result = 'Error: ' + err.message;
-            }
-
-            // Display the result or error
-            document.getElementById('results').textContent = result;
-        }
-    </script>
-</body>
-</html>
+        }).catch(function(err) {
+            document.
