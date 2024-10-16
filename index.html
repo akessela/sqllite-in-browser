@@ -1,92 +1,96 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SQLite in Browser</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            padding: 20px;
-        }
-        textarea {
-            width: 100%;
-            height: 100px;
-            margin-top: 10px;
-        }
-        button {
-            margin-top: 10px;
-        }
-        pre {
-            background-color: #f4f4f4;
-            padding: 10px;
-            border: 1px solid #ddd;
-            overflow-x: auto;
-        }
-        .error {
-            color: red;
-        }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SQLite in Browser</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 20px;
+    }
+
+    textarea {
+      width: 100%;
+      height: 100px;
+      margin-top: 10px;
+    }
+
+    button {
+      margin-top: 10px;
+    }
+
+    pre {
+      background-color: #f4f4f4;
+      padding: 10px;
+      border: 1px solid #ddd;
+      overflow-x: auto;
+    }
+
+    .error {
+      color: red;
+    }
+  </style>
 </head>
 <body>
-    <h1>Run SQLite Queries in the Browser</h1>
-    <textarea id="query" placeholder="Enter SQL query here"></textarea>
-    <br>
-    <button id="runButton" disabled>Run Query</button>
-    <pre id="results"></pre>
+  <h1>Run SQLite Queries in the Browser</h1>
+  <textarea id="query" placeholder="Enter SQL query here"></textarea>
+  <br>
+  <button id="runButton" disabled>Run Query</button>
+  <pre id="results"></pre>
 
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.6.2/sql-wasm.js"></script>
-    <script>
-        let db;
-        let dbInitialized = false;  // Track whether the database is ready
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.6.2/sql-wasm.js"></script>
+  <script>
+    let db;
+    let dbInitialized = false; // Track whether the database is ready
 
-        // Initialize sql.js and create a new database in memory
-        initSqlJs({
-            locateFile: file => `https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.6.2/${file}`
-        }).then(function(SQL) {
-            // Create an empty database
-            db = new SQL.Database();
-            dbInitialized = true;
-            console.log('Database initialized successfully.');
+    // Initialize sql.js and create a new database in memory
+    initSqlJs({
+      locateFile: file => `https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.6.2/${file}`
+    }).then(function(SQL) {
+      // Create an empty database
+      db = new SQL.Database();
+      dbInitialized = true;
+      console.log('Database initialized successfully.');
 
-            // Enable the "Run Query" button once DB is initialized
-            document.getElementById('runButton').disabled = false;
+      // Enable the "Run Query" button once DB is initialized
+      document.getElementById('runButton').disabled = false;
 
-            // Optional: Pre-populate the database with some data (example)
-            db.run("CREATE TABLE test (id INTEGER, message TEXT); INSERT INTO test VALUES (1, 'Hello World'), (2, 'SQLite in the browser!');");
+      // **Removed pre-population of data (optional)**
+      // db.run("CREATE TABLE test (id INTEGER, message TEXT); INSERT INTO test VALUES (1, 'Hello World'), (2, 'SQLite in the browser!');");
 
-        }).catch(function(err) {
-            document.getElementById('results').textContent = 'Error loading sql.js: ' + err.message;
-            console.error("SQL.js initialization error:", err);
-        });
+    }).catch(function(err) {
+      document.getElementById('results').textContent = 'Error loading sql.js: ' + err.message;
+      console.error("SQL.js initialization error:", err);
+    });
 
-        // Add a click event listener for the "Run Query" button
-        document.getElementById('runButton').addEventListener('click', function() {
-            const query = document.getElementById('query').value;
-            let result = '';
+    // Add a click event listener for the "Run Query" button
+    document.getElementById('runButton').addEventListener('click', function() {
+      const query = document.getElementById('query').value;
+      let result = '';
 
-            if (!dbInitialized) {
-                result = 'Error: Database is not initialized yet. Please wait...';
-                document.getElementById('results').textContent = result;
-                return;
-            }
+      if (!dbInitialized) {
+        result = 'Error: Database is not initialized yet. Please wait...';
+        document.getElementById('results').textContent = result;
+        return;
+      }
 
-            try {
-                // Run the SQL query
-                const res = db.exec(query);
-                if (res.length === 0) {
-                    result = 'No results found.';
-                } else {
-                    result = JSON.stringify(res, null, 2);
-                }
-            } catch (err) {
-                result = 'Error: ' + err.message;
-                console.error("Query execution error:", err);  // More detailed logging for debugging
-            }
+      try {
+        // Run the SQL query
+        const res = db.exec(query);
+        if (res.length === 0) {
+          result = 'No results found.';
+        } else {
+          result = JSON.stringify(res, null, 2);
+        }
+      } catch (err) {
+        result = 'Error: ' + err.message;
+        console.error("Query execution error:", err);  // More detailed logging for debugging
+      }
 
-            // Display the result or error
-            document.getElementById('results').textContent = result;
-        });
-    </script>
+      // Display the result or error
+      document.getElementById('results').textContent = result;
+    });
+  </script>
 </body>
 </html>
