@@ -21,32 +21,3 @@
             background-color: #f4f4f4;
             padding: 10px;
             border: 1px solid #ddd;
-            overflow-x: scroll;
-        }
-        .error {
-            color: red;
-        }
-    </style>
-</head>
-<body>
-    <h1>Run SQLite Queries in the Browser</h1>
-    <textarea id="query" placeholder="Enter SQL query here"></textarea>
-    <br>
-    <button onclick="runQuery()">Run Query</button>
-    <pre id="results"></pre>
-
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.6.2/sql-wasm.js"></script>
-    <script>
-        let db;
-        let dbInitialized = false;  // Track whether the database is ready
-
-        // Initialize sql.js and create a new database in memory
-        initSqlJs().then(function(SQL) {
-            // Create an empty database
-            db = new SQL.Database();
-            dbInitialized = true;
-
-            // Optional: Pre-populate the database with some data (example)
-            db.run("CREATE TABLE test (id INTEGER, message TEXT); INSERT INTO test VALUES (1, 'Hello World'), (2, 'SQLite in the browser!');");
-        }).catch(function(err) {
-            document.
